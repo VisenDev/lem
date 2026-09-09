@@ -122,19 +122,15 @@ call it from code that participates in normal editing.")
   (length (line-string line)))
 
 (defun remove-elements (elements start end)
-  (iter:iter (iter:for (start1 end1 value1) iter:in elements)
-    (cond
-      ((<= start start1 end1 end)
-       nil)
-      ((<= start start1 end end1)
-       (iter:collect (list end end1 value1)))
-      ((<= start1 start end1 end)
-       (iter:collect (list start1 start value1)))
-      ((<= start1 start end end1)
-       (iter:collect (list start1 start value1))
-       (iter:collect (list end end1 value1)))
-      (t
-       (iter:collect (list start1 end1 value1))))))
+  (loop :for (start1 end1 value1) :in elements
+        :appending (cond
+          ((<= start start1 end1 end) nil)
+          ((<= start start1 end end1) (list (list end end1 value1)))
+          ((<= start1 start end1 end) (list (list start1 start value1)))
+          ((<= start1 start end end1)
+           (list (list start1 start value1)
+                 (list end end1 value1)))
+          (t (list (list start1 end1 value1))))))
 
 (defun normalization-elements (elements)
   (declare (optimize (speed 3) (safety 1)))
@@ -176,20 +172,21 @@ call it from code that participates in normal editing.")
                 (return (nreverse result))))
 
 (defun subseq-elements (elements start end)
-  (iter:iter (iter:for (start1 end1 value1) iter:in elements)
-    (cond
-      ((<= start start1 end1 end)
-       (iter:collect (list (- start1 start) (- end1 start) value1)))
-      ((<= start start1 end end1)
-       (iter:collect (list (- start1 start) (- end start) value1)))
-      ((<= start1 start end1 end)
-       (iter:collect (list (- start start) (- end1 start) value1)))
-      ((<= start1 start end end1)
-       (iter:collect (list (- start start) (- end start) value1))))))
+  (loop :for (start1 end1 value1) :in elements
+        :appending
+        (cond
+          ((<= start start1 end1 end)
+           (list (list (- start1 start) (- end1 start) value1)))
+          ((<= start start1 end end1)
+           (list (list (- start1 start) (- end start) value1)))
+          ((<= start1 start end1 end)
+           (list (list (- start start) (- end1 start) value1)))
+          ((<= start1 start end end1)
+           (list (list (- start start) (- end start) value1))))))
 
 (defun offset-elements (elements n)
-  (iter:iter (iter:for (start1 end1 value1) iter:in elements)
-    (iter:collect (list (+ n start1) (+ n end1) value1))))
+  (loop :for (start1 end1 value1) :in elements
+        :collect (list (+ n start1) (+ n end1) value1)))
 
 (defun put-elements (elements start end value &optional contp)
   (declare (optimize (speed 3) (safety 1))
@@ -341,22 +338,24 @@ call it from code that participates in normal editing.")
           :do (let ((new-values '())
                     (new-values-last nil))
                 (setf (cadr plist-rest)
-                      (iter:iter
-                        (iter:for elt iter:in (cadr plist-rest))
-                        (iter:for (start end value) iter:next elt)
-                        (cond ((<= pos start)
-                               (let ((new-elt (list (list (- start pos) (- end pos) value))))
-                                 (cond
-                                   (new-values-last
-                                    (setf (cdr new-values-last) new-elt)
-                                    (setf new-values-last (cdr new-values-last)))
-                                   (t
-                                    (setf new-values new-elt)
-                                    (setf new-values-last new-elt)))))
-                              ((<= pos end)
-                               (iter:collect (list start pos value)))
-                              (t
-                               (iter:collect elt)))))
+                      (loop :for elt :in (cadr plist-rest)
+                            :for (start end value) = elt
+                            :appending
+                            (cond ((<= pos start)
+                                   (let ((new-elt (list (list (- start pos)
+                                                              (- end pos) value))))
+                                     (cond
+                                       (new-values-last
+                                        (setf (cdr new-values-last) new-elt)
+                                        (setf new-values-last (cdr new-values-last)))
+                                       (t
+                                        (setf new-values new-elt)
+                                        (setf new-values-last new-elt))))
+                                   nil)
+                                  ((<= pos end)
+                                   (list (list start pos value)))
+                                  (t
+                                   (list elt)))))
                 (unless (null new-values)
                   (setf (getf new-plist (car plist-rest)) new-values))))
     (setf (line-plist next-line) new-plist)))

@@ -15,10 +15,8 @@
     (set (intern (string :*local-project-directories*) :ql) local-project-dir)))
 
 (defsystem "lem/core"
-  :depends-on ("iterate"
-               "closer-mop"
+  :depends-on ("closer-mop"
                "trivia"
-               "alexandria"
                "trivial-gray-streams"
                "trivial-types"
                "cl-ppcre"
